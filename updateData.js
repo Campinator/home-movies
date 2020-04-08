@@ -1,17 +1,32 @@
 const fs = require('fs');
 const readline = require('readline');
+const {Transform} = require('stream')
 const https = require('https');
 const zlib = require('zlib');
 const path = require('path');
 const sqlite3 = require('sqlite3');
-const {execSync} = require('child_process');
+const {
+   execSync
+} = require('child_process');
 
 const DESTFILE = path.join(__dirname, 'fileFromIMDB.tsv.gz');
 const UNZIPFILE = path.join(__dirname, 'fileUnzipped.tsv');
+const CLEANEDFILE = path.join(__dirname, 'data.tsv');
 const DATABASE = path.join(__dirname, 'imdb.db');
 
+class stripChars extends Transform{
+   constructor(){
+      super();
+   }
+   _transform(chunk, enc, done){
+      let edited = chunk.toString().replace(/"/g, "");
+      this.push(edited);
+      done();
+   }
+}
+
 const downloadFile = new Promise((resolve, reject) => {
-   if(fs.existsSync(DESTFILE)) fs.unlinkSync(DESTFILE);
+   if (fs.existsSync(DESTFILE)) fs.unlinkSync(DESTFILE);
    const file = fs.createWriteStream(DESTFILE, {
       flags: "w"
    });
@@ -44,43 +59,42 @@ const downloadFile = new Promise((resolve, reject) => {
    });
 }).then(file => {
    const unzipFile = new Promise((resolve, reject) => {
-      if(fs.existsSync(UNZIPFILE)) fs.unlinkSync(UNZIPFILE);
+      if (fs.existsSync(UNZIPFILE)) fs.unlinkSync(UNZIPFILE);
       const zipped = fs.createReadStream(file);
       const unzipped = fs.createWriteStream(UNZIPFILE, {
          flags: "w"
       })
       const gz = zlib.createGunzip();
       console.log("File downloaded, beginning to unzip");
-      zipped.pipe(gz).pipe(unzipped).on('finish', (err) =>{
-         if(err) reject(err);
+      zipped.pipe(gz).pipe(unzipped).on('finish', (err) => {
+         if (err) reject(err);
          else resolve(UNZIPFILE);
       })
    }).then(file => {
-      console.log("File Unzipped, creating database");
-      const makeDatabase = new Promise((resolve, reject) => {
-         if(fs.existsSync(DATABASE))fs.unlinkSync(DATABASE);
-         let db = new sqlite3.Database(DATABASE, (err) => {
-            if(err) reject(err);
-         });
-         db.run('CREATE TABLE imdb(tconst, titleType, primaryTitle, originalTitle, isAdult, startYear, endYear, runtimeMinutes, genres)', (err) => {
-            if(err) reject(err);
-            const reader = readline.createInterface({
-               input: fs.createReadStream(UNZIPFILE)
-            });
-            reader.on('line', (line) => {
-               db.run(`INSERT INTO imdb VALUES("${line.replace(/"/g, "").replace(/\t/g, '","')}")`, (err) => {
-                  if(err){
-                     console.log(line);
-                     console.log(line.replace(/"/g, "").replace(/\t/g, '","'));
-                     reject(err);
-                  }
-               });
-            });
-            reader.on('close', () => {
-               db.close();
-               console.log("Database created");
-               resolve(DATABASE);
-            })
+      console.log("File Unzipped, stripping quotes");
+      const removeQuotes = new Promise((resolve, reject) => {
+         const fopen = fs.createReadStream(file);
+         const fout = fs.createWriteStream(CLEANEDFILE);
+         fopen.pipe(new stripChars()).pipe(fout);
+         fopen.on('end', () =>{
+            fopen.close();
+            console.log("Replaced all quotes");
+            fs.unlinkSync(UNZIPFILE);
+            resolve(CLEANEDFILE);
+         })
+         fopen.on('error', err => {
+            reject(err);
+         })
+         fout.on('error', err => {
+            reject(err);
+         })
+      }).then((file) => {
+         const createDatabase = new Promise((resolve, reject) => {
+            console.log("Creating Database");
+            if(fs.existsSync(DATABASE)) fs.unlinkSync(DATABASE);
+            execSync(`sqlite3 ${DATABASE} < makeDB.txt`);
+            console.log("Database Created");
+            resolve(DATABASE)
          })
       })
    })
