@@ -1,0 +1,22 @@
+{
+  "name": "home-movies",
+  "version": "1.0.0",
+  "description": "Personal Project to search a title for its IMDB tag, then get the corresponding video.",
+  "main": " ",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Campinator/home-movies.git"
+  },
+  "author": "Camp Steiner",
+  "license": "GPL-3.0-only",
+  "bugs": {
+    "url": "https://github.com/Campinator/home-movies/issues"
+  },
+  "homepage": "https://github.com/Campinator/home-movies#readme",
+  "dependencies": {
+    "sqlite3": "^4.1.1"
+  }
+}

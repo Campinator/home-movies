@@ -1,12 +1,14 @@
 const fs = require('fs');
+const readline = require('readline');
 const https = require('https');
 const zlib = require('zlib');
 const path = require('path');
-const {exec} = require('child_process');
+const sqlite3 = require('sqlite3');
+const {execSync} = require('child_process');
 
 const DESTFILE = path.join(__dirname, 'fileFromIMDB.tsv.gz');
 const UNZIPFILE = path.join(__dirname, 'fileUnzipped.tsv');
-const DATABASE = path.join(__dirname, 'IMDBdata.db');
+const DATABASE = path.join(__dirname, 'imdb.db');
 
 const downloadFile = new Promise((resolve, reject) => {
    if(fs.existsSync(DESTFILE)) fs.unlinkSync(DESTFILE);
@@ -54,15 +56,32 @@ const downloadFile = new Promise((resolve, reject) => {
          else resolve(UNZIPFILE);
       })
    }).then(file => {
-      console.log("File Unzipped");
+      console.log("File Unzipped, creating database");
       const makeDatabase = new Promise((resolve, reject) => {
          if(fs.existsSync(DATABASE))fs.unlinkSync(DATABASE);
-         exec(`sqlite3 ${DATABASE} < makeDB.txt`, (err, stdout, stderr) => {
+         let db = new sqlite3.Database(DATABASE, (err) => {
             if(err) reject(err);
-            if(stderr) reject(stderr);
-            console.log(stdout)
+         });
+         db.run('CREATE TABLE imdb(tconst, titleType, primaryTitle, originalTitle, isAdult, startYear, endYear, runtimeMinutes, genres)', (err) => {
+            if(err) reject(err);
+            const reader = readline.createInterface({
+               input: fs.createReadStream(UNZIPFILE)
+            });
+            reader.on('line', (line) => {
+               db.run(`INSERT INTO imdb VALUES("${line.replace(/"/g, "").replace(/\t/g, '","')}")`, (err) => {
+                  if(err){
+                     console.log(line);
+                     console.log(line.replace(/"/g, "").replace(/\t/g, '","'));
+                     reject(err);
+                  }
+               });
+            });
+            reader.on('close', () => {
+               db.close();
+               console.log("Database created");
+               resolve(DATABASE);
+            })
          })
-         resolve("e");
       })
    })
 }).catch(err => console.error(err));

@@ -1,2 +1,1 @@
 .separator \t
-.import fileUnzipped.tsv imdb
