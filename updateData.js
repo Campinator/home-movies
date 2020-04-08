@@ -4,7 +4,6 @@ const {Transform} = require('stream')
 const https = require('https');
 const zlib = require('zlib');
 const path = require('path');
-const sqlite3 = require('sqlite3');
 const {
    execSync
 } = require('child_process');
