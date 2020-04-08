@@ -2,8 +2,7 @@ const fs = require('fs');
 const https = require('https');
 const zlib = require('zlib');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
-const {execSync} = require('child_process');
+const {exec} = require('child_process');
 
 const DESTFILE = path.join(__dirname, 'fileFromIMDB.tsv.gz');
 const UNZIPFILE = path.join(__dirname, 'fileUnzipped.tsv');
